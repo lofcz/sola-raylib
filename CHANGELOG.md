@@ -2,6 +2,42 @@
 
 ## UNRELEASED
 
+No unreleased changes.
+
+## 6.2.0 - June 2, 2026
+
+### BREAKING
+
+- **`RaylibHandle::load_shader` and `load_shader_from_memory` are now fallible**
+  ([#51]). Both return `Result<Shader, Error>` instead of `Shader`. raylib
+  silently logs a warning and substitutes the default shader when a file is
+  missing or a shader fails to compile, so the old signatures made those
+  failures look like success. `load_shader` now also checks each provided path
+  exists before calling raylib, necessary because a missing file comes back as
+  the (valid, non-zero) default shader id and is otherwise undetectable. This is
+  a breaking signature change, but a loud, compile-time one: add `?` or
+  `.unwrap()` at the call site.
+
+  ```rust
+  // before
+  let shader = rl.load_shader(&thread, None, Some("grayscale.fs"));
+  // after
+  let shader = rl.load_shader(&thread, None, Some("grayscale.fs"))?;
+  ```
+
+  Caveat: a vertex/fragment pair that compiles individually but fails to _link_
+  still slips through, since raylib reassigns the default shader id internally
+  and the failure can't be observed from the binding.
+
+- **`Image::load_image_anim` and `load_image_anim_from_memory` are now
+  fallible** ([#51]). Both return `Result<Image, Error>` instead of `Image`,
+  checking for the null `data` raylib hands back on failure. This brings them in
+  line with their non-animated siblings (`load_image`, `load_image_raw`,
+  `load_image_from_mem`), which already returned `Result`. Add `?` or
+  `.unwrap()` at the call site.
+
+[#51]: https://github.com/brettchalupa/sola-raylib/issues/51
+
 ### Added
 
 - **`RaylibHandle::request_quit`.** Programmatic quit for the
@@ -24,8 +60,16 @@
   `INCLUDE` / `LIB` / `PATH` into the build env. No-op if you're already in a
   vcvars shell (`INCLUDE` is set) or targeting a non-msvc target. Thanks to
   @lofcz.
+- **The `sdl` feature now links the correct SDL version on Windows** ([#57]).
+  The build script decided between SDL2 and SDL3 by probing `pkg-config`, which
+  Windows does not ship, so it always fell through to linking SDL2 regardless of
+  what raylib's CMake actually compiled against. It now reads raylib's resolved
+  choice from the generated `raylib-config.cmake` (`find_dependency(SDL3 ...)`
+  vs `SDL2`) and links the matching library, on every platform and with no
+  pkg-config dependency.
 
 [#56]: https://github.com/brettchalupa/sola-raylib/pull/56
+[#57]: https://github.com/brettchalupa/sola-raylib/issues/57
 
 ## 6.1.0 - May 7, 2026
 
